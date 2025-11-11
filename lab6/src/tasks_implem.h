@@ -11,6 +11,10 @@ extern pthread_t *workers ;
 extern pthread_mutex_t mutex;
 extern pthread_cond_t empty;
 extern pthread_cond_t full;
+extern int submitted_task_count;
+extern int completed_task_count;
+extern pthread_cond_t all_tasks_done;
+extern int turn_off;
 void create_queues(void);
 void delete_queues(void);
 

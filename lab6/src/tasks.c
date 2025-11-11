@@ -42,6 +42,29 @@ void runtime_finalize(void)
     task_waitall();
 
     PRINT_DEBUG(1, "Terminating ... \t Total task count: %lu \n", sys_state.task_counter);
+
+    //stopping the workers 
+    pthread_mutex_lock(&mutex);
+        turn_off = 1;
+    pthread_mutex_unlock(&mutex);
+
+    pthread_cond_broadcast(&empty);
+
+    // 4. C'est ce que vous avez dit : la boucle join
+    for (int i = 0; i < THREAD_COUNT; i++) {
+        pthread_join(workers[i], NULL);
+    }
+
+    // 5. Nettoyer les ressources
+    PRINT_DEBUG(1, "Terminating ... \t Total task count: %lu \n", sys_state.task_counter);
+
+    free(workers); 
+    delete_queues();
+
+    pthread_mutex_destroy(&mutex);
+    pthread_cond_destroy(&empty);
+    pthread_cond_destroy(&full);
+    pthread_cond_destroy(&all_tasks_done);
     
     delete_queues();
 }
@@ -90,20 +113,11 @@ void submit_task(task_t *t)
 
 void task_waitall(void)
 {
-    active_task = get_task_to_execute();
+    pthread_mutex_lock(&mutex);
 
-    while(active_task != NULL){
-        task_return_value_t ret = exec_task(active_task);
-
-        if (ret == TASK_COMPLETED){
-            terminate_task(active_task);
-        }
-#ifdef WITH_DEPENDENCIES
-        else{
-            active_task->status = WAITING;
-        }
-#endif
-
-        active_task = get_task_to_execute();
+    while(completed_task_count < submitted_task_count){
+        pthread_cond_wait(&all_tasks_done, &mutex);
     }
+
+    pthread_mutex_unlock(&mutex);
 }

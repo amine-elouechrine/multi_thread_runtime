@@ -1,0 +1,8 @@
+DONE:
+    Stage I:
+        Pool de Threads
+        Consommateurs worker function 
+        Producteur  dispatch function
+        we modified the function wait_all so it does not execute the function anymore but does just the waiting
+        and we optimised the waiting to know when to completely stop the executuion
+        
