@@ -46,6 +46,8 @@ void *worker_func(void *arg){//consumer
             int result = exec_task(new_task);
             if(result == TASK_COMPLETED){
                 terminate_task(new_task);
+            }else if(result == TASK_TO_BE_RESUMED){
+                new_task->status = WAITING;
             }
         }
     }
@@ -72,18 +74,25 @@ void create_thread_pool(void)
 
 }
 
-void dispatch_task(task_t *t)
+void dispatch_task(task_t *t)//producer
 {   
     pthread_mutex_lock(&mutex);
-        while(tqueue->index == tqueue->task_buf_size){
-            pthread_cond_wait(&full,&mutex);
+        if(tqueue->index == tqueue->task_buf_size){
+            //pthread_cond_wait(&full,&mutex);
+            tqueue->task_buf_size=tqueue->task_buf_size*2;
+            
+            task_t** resized_buffer= realloc(tqueue->task_buffer,tqueue->task_buf_size);
+            if(resized_buffer==NULL){
+                perror("Error while allocating");
+                return;
+            }
+            tqueue->task_buffer=resized_buffer;
         }
         //empty slot
        enqueue_task(tqueue, t); 
        submitted_task_count++;
        pthread_cond_signal(&empty);
     pthread_mutex_unlock(&mutex);
-    
 }
 
 task_t* get_task_to_execute(void)
@@ -120,7 +129,7 @@ void terminate_task(task_t *t)
     pthread_mutex_unlock(&mutex);
 
 #ifdef WITH_DEPENDENCIES
-    if(t->parent_task != NULL){
+    if(t->parent_task != NULL){//it does  have a parent 
         task_t *waiting_task = t->parent_task;
         waiting_task->task_dependency_done++;
         
@@ -134,7 +143,7 @@ void task_check_runnable(task_t *t)
 {
 #ifdef WITH_DEPENDENCIES
     if(t->task_dependency_done == t->task_dependency_count){
-        t->status = READY;
+        t->status = READY;// all the childern are finished 
         dispatch_task(t);
     }
 #endif

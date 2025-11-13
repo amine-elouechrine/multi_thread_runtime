@@ -7,7 +7,7 @@
 
 system_state_t sys_state;
 
-__thread task_t *active_task;
+__thread task_t *active_task;//why 
 
 
 void runtime_init(void)
@@ -50,12 +50,10 @@ void runtime_finalize(void)
 
     pthread_cond_broadcast(&empty);
 
-    // 4. C'est ce que vous avez dit : la boucle join
     for (int i = 0; i < THREAD_COUNT; i++) {
         pthread_join(workers[i], NULL);
     }
 
-    // 5. Nettoyer les ressources
     PRINT_DEBUG(1, "Terminating ... \t Total task count: %lu \n", sys_state.task_counter);
 
     free(workers); 

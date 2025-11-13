@@ -5,4 +5,14 @@ DONE:
         Producteur  dispatch function
         we modified the function wait_all so it does not execute the function anymore but does just the waiting
         and we optimised the waiting to know when to completely stop the executuion
-        
+        Tested it 
+    Stage II:
+        resizing the queue when it's full
+        if there's a dependencie put the parent to wait 
+
+
+
+
+
+
+TO BE DONE: figure out how to "wake up " the parent thread when a child has finished his task 
