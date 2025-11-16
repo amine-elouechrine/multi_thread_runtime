@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include "tasks_implem.h"
 #include "debug.h"
+#include "tasks.h"
 #include <stdlib.h>
 tasks_queue_t *tqueue = NULL;
 pthread_t *workers;
@@ -136,7 +137,7 @@ void terminate_task(task_t *t)
         parent->task_dependency_done++;
 
         //check if we still have some dependencies 
-        if (parent->task_dependency_done == parent->task_dependency_count) {
+        if (parent->task_dependency_done == parent->task_dependency_count && parent->status == WAITING) {
             parent->status = READY;
             parent_to_wake = parent;
             
