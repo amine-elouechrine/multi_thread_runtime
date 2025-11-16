@@ -1,13 +1,13 @@
 #include <stdlib.h>
-
+#include <pthread.h>
 #include "tasks.h"
 #include "tasks_implem.h"
 #include "debug.h"
 #include "utils.h"
 
 system_state_t sys_state;
-
-__thread task_t *active_task;//why 
+extern pthread_mutex_t mutex;
+__thread task_t *active_task;//why ?????
 
 
 void runtime_init(void)
@@ -94,17 +94,20 @@ task_t* create_task(task_routine_t f)
 
 void submit_task(task_t *t)
 {
-    t->status = READY;
+    pthread_mutex_lock(&mutex),
+            t->status = READY; 
+            submitted_task_count++;
 
-#ifdef WITH_DEPENDENCIES    
-    if(active_task != NULL){
-        t->parent_task = active_task;
-        active_task->task_dependency_count++;
-        
-        PRINT_DEBUG(100, "Dependency %u -> %u\n", active_task->task_id, t->task_id);
-    }
-#endif
-    
+
+        #ifdef WITH_DEPENDENCIES    
+            if(active_task != NULL){
+                t->parent_task = active_task;
+                active_task->task_dependency_count++;
+                
+                PRINT_DEBUG(100, "Dependency %u -> %u\n", active_task->task_id, t->task_id);
+            }
+        #endif
+    pthread_mutex_unlock(&mutex);
     dispatch_task(t);
 }
 
