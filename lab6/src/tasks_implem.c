@@ -14,7 +14,7 @@ int submitted_task_count = 0;
 int completed_task_count = 0;
 pthread_cond_t all_tasks_done = PTHREAD_COND_INITIALIZER;
 int turn_off = 0;
-int rr_index = 0;
+int rr_index = 0;//Round Robin index
 int *thread_ids = NULL;
 
 void create_queues(void)
@@ -53,7 +53,6 @@ void *worker_func(void *arg)
     while (1)
     {
         pthread_mutex_lock(&mutex);
-        /* wait until some queue has tasks or turn_off */
         int total = 0;
         for (int i = 0; i < THREAD_COUNT; i++)
             total += tqueues[i]->index;
@@ -64,7 +63,7 @@ void *worker_func(void *arg)
             for (int i = 0; i < THREAD_COUNT; i++)
                 total += tqueues[i]->index;
         }
-
+        
         // check if we have to be turned off
 
         if (turn_off)
