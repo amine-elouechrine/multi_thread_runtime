@@ -9,7 +9,9 @@ DONE:
     Stage II:
         resizing the queue when it's full
         if there's a dependencie put the parent to wait 
-
+stage  III:
+    performance improvment 
+    
 
 
 

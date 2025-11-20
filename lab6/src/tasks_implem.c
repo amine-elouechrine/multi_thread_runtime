@@ -49,7 +49,19 @@ void *worker_func(void *arg){//consumer
             if(result == TASK_COMPLETED){
                 terminate_task(new_task);
             }else if(result == TASK_TO_BE_RESUMED){
-                new_task->status = WAITING;
+                pthread_mutex_lock(&mutex);
+                if(new_task->task_dependency_done == new_task->task_dependency_count){
+                    //the childrean finished really fast 
+                    new_task->status = READY;
+                    pthread_mutex_unlock(&mutex);
+                    dispatch_task(new_task);
+                }
+                else{
+
+                    new_task->status = WAITING;
+                    pthread_mutex_unlock(&mutex);
+
+                }
             }
             active_task = NULL;
         }
