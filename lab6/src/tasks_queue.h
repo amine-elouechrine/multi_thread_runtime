@@ -8,6 +8,8 @@ typedef struct tasks_queue{
     task_t** task_buffer;
     unsigned int task_buf_size;
     unsigned int index;
+    pthread_mutex_t mutex;    
+    pthread_cond_t not_empty; 
 } tasks_queue_t;
     
 

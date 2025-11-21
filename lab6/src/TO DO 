@@ -9,7 +9,10 @@ DONE:
     Stage II:
         resizing the queue when it's full
         if there's a dependencie put the parent to wait 
-
+        automatisation of waking up the parent
+        liason parent enfant to be able to wake the right parent 
+        counting the nb of childern to know when to wake the parent 
+        
 
 
 

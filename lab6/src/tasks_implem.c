@@ -8,14 +8,15 @@
 tasks_queue_t **tqueues = NULL;
 pthread_t *workers;
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
-pthread_cond_t empty = PTHREAD_COND_INITIALIZER;
-pthread_cond_t full = PTHREAD_COND_INITIALIZER;
+
 int submitted_task_count = 0;
 int completed_task_count = 0;
 pthread_cond_t all_tasks_done = PTHREAD_COND_INITIALIZER;
 int turn_off = 0;
 int rr_index = 0;//Round Robin index
 int *thread_ids = NULL;
+
+pthread_mutex_t stats_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 void create_queues(void)
 {
@@ -48,45 +49,45 @@ void delete_queues(void)
 void *worker_func(void *arg)
 { // consumer
     PRINT_DEBUG(10, "Worker thread started.\n");
-    task_t *new_task;
-    int worker_id = *(int *)arg;
+    int worker_id =*(int *)arg;
+    tasks_queue_t *my_queue = tqueues[worker_id]; 
+    task_t *new_task = NULL;
+
+
     while (1)
     {
-        pthread_mutex_lock(&mutex);
-        int total = 0;
-        for (int i = 0; i < THREAD_COUNT; i++)
-            total += tqueues[i]->index;
-        while (total == 0 && turn_off == 0)
+        pthread_mutex_lock(&my_queue->mutex);
+        while (my_queue->index == 0 && turn_off == 0)
         {
-            pthread_cond_wait(&empty, &mutex);
-            total = 0;
-            for (int i = 0; i < THREAD_COUNT; i++)
-                total += tqueues[i]->index;
+            pthread_cond_wait(&my_queue->not_empty, &my_queue->mutex);
         }
-        
-        // check if we have to be turned off
 
-        if (turn_off)
-        {
-            pthread_mutex_unlock(&mutex);
+        if (turn_off) {
+            pthread_mutex_unlock(&my_queue->mutex);
             break;
         }
-        // new task
-        new_task = get_task_to_execute(worker_id);
-        pthread_mutex_unlock(&mutex);
-
-        if (new_task != NULL)
-        {
+        //our task
+        new_task = dequeue_task(my_queue);
+        
+        pthread_mutex_unlock(&my_queue->mutex);
+        if(new_task!=NULL){
             active_task = new_task;
-
             int result = exec_task(new_task);
-            if (result == TASK_COMPLETED)
-            {
+
+            if (result == TASK_COMPLETED) {
                 terminate_task(new_task);
-            }
-            else if (result == TASK_TO_BE_RESUMED)
-            {
-                new_task->status = WAITING;
+            }else if(result == TASK_TO_BE_RESUMED){
+                pthread_mutex_lock(&mutex);
+                if(new_task->task_dependency_done == new_task->task_dependency_count){
+                    //the childrean finished really fast 
+                    new_task->status = READY;
+                    pthread_mutex_unlock(&mutex);
+                    dispatch_task(new_task);
+                }
+                else{
+                    new_task->status = WAITING;
+                    pthread_mutex_unlock(&mutex);
+                }
             }
             active_task = NULL;
         }
@@ -121,9 +122,11 @@ void create_thread_pool(void)
 
 void dispatch_task(task_t *t) // producer
 {
-    pthread_mutex_lock(&mutex);
-    int target = rr_index++ % THREAD_COUNT;
-    if (tqueues[target]->index == tqueues[target]->task_buf_size)
+    int target = __sync_fetch_and_add(&rr_index, 1) % THREAD_COUNT;
+    tasks_queue_t *q = tqueues[target];
+
+    pthread_mutex_lock(&q->mutex);
+    if (q->index == q->task_buf_size)
     {
         tqueues[target]->task_buf_size = tqueues[target]->task_buf_size * 2;
         task_t **resized_buffer = realloc(tqueues[target]->task_buffer, sizeof(task_t *) * tqueues[target]->task_buf_size);
@@ -134,14 +137,27 @@ void dispatch_task(task_t *t) // producer
         }
         tqueues[target]->task_buffer = resized_buffer;
     }
-    enqueue_task(tqueues[target], t);
-    pthread_cond_signal(&empty);
-    pthread_mutex_unlock(&mutex);
+    enqueue_task(q, t);
+    pthread_cond_signal(&q->not_empty);
+    pthread_mutex_unlock(&q->mutex);
 }
 
 task_t *get_task_to_execute(int worker_id)
 {
-    task_t *t = dequeue_task(tqueues[worker_id]);
+    task_t *t =NULL;
+    tasks_queue_t *my_queue =tqueues[worker_id];
+
+    //try to dequee my queue:
+    pthread_mutex_lock(&my_queue->mutex);
+    if (my_queue->index > 0) {
+        t = dequeue_task(my_queue);
+    }
+    pthread_mutex_unlock(&my_queue->mutex);
+
+    if (t != NULL) return t;
+
+
+    t = dequeue_task(tqueues[worker_id]);
     if (t != NULL)
         return t;
 

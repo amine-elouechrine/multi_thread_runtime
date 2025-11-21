@@ -7,6 +7,7 @@
 
 system_state_t sys_state;
 extern pthread_mutex_t mutex;
+extern tasks_queue_t **tqueues;
 __thread task_t *active_task;//why ?????
 
 
@@ -18,8 +19,7 @@ void runtime_init(void)
 
     create_queues();
     pthread_mutex_init(&mutex, NULL);
-    pthread_cond_init(&empty, NULL);
-    pthread_cond_init(&full,NULL);
+
     create_thread_pool();
 
     sys_state.task_counter = 0;    
@@ -48,7 +48,11 @@ void runtime_finalize(void)
         turn_off = 1;
     pthread_mutex_unlock(&mutex);
 
-    pthread_cond_broadcast(&empty);
+    for (int i = 0; i < THREAD_COUNT; i++) {
+        pthread_mutex_lock(&tqueues[i]->mutex);
+        pthread_cond_signal(&tqueues[i]->not_empty);
+        pthread_mutex_unlock(&tqueues[i]->mutex);
+    } 
 
     for (int i = 0; i < THREAD_COUNT; i++) {
         pthread_join(workers[i], NULL);
@@ -60,11 +64,9 @@ void runtime_finalize(void)
     delete_queues();
 
     pthread_mutex_destroy(&mutex);
-    pthread_cond_destroy(&empty);
-    pthread_cond_destroy(&full);
+
     pthread_cond_destroy(&all_tasks_done);
     
-    delete_queues();
 }
 
 
