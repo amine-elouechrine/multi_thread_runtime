@@ -142,33 +142,8 @@ void dispatch_task(task_t *t) // producer
     pthread_mutex_unlock(&q->mutex);
 }
 
-task_t *get_task_to_execute(int worker_id)
+task_t *get_task_to_execute(int worker_id)// not used anymore
 {
-    task_t *t =NULL;
-    tasks_queue_t *my_queue =tqueues[worker_id];
-
-    //try to dequee my queue:
-    pthread_mutex_lock(&my_queue->mutex);
-    if (my_queue->index > 0) {
-        t = dequeue_task(my_queue);
-    }
-    pthread_mutex_unlock(&my_queue->mutex);
-
-    if (t != NULL) return t;
-
-
-    t = dequeue_task(tqueues[worker_id]);
-    if (t != NULL)
-        return t;
-
-    for (int i = 1; i < THREAD_COUNT; i++)
-    {
-        int idx = (worker_id + i) % THREAD_COUNT;
-        t = dequeue_task(tqueues[idx]);
-        if (t != NULL)
-            return t;
-    }
-
     return NULL;
 }
 
